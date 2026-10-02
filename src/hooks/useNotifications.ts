@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { deleteNotification, receiveNotification } from '../api/greenApi'
-import type { GreenApiCredentials, IncomingMessageWebhook } from '../types/greenApi'
+import type {
+  GreenApiCredentials,
+  IncomingMessageWebhook,
+  OutgoingStatusWebhook,
+} from '../types/greenApi'
 
 interface UseNotificationsProps {
   credentials: GreenApiCredentials | null
@@ -11,12 +15,32 @@ interface UseNotificationsProps {
     timestamp: number
     idMessage: string
   }) => void
+  onMessageStatusUpdate?: (payload: {
+    idMessage: string
+    status: 'sent' | 'delivered' | 'read'
+  }) => void
 }
 
-export function useNotifications({ credentials, onIncomingMessage }: UseNotificationsProps) {
+export function useNotifications({
+  credentials,
+  onIncomingMessage,
+  onMessageStatusUpdate,
+}: UseNotificationsProps) {
   const [isPolling, setIsPolling] = useState(false)
   const [lastError, setLastError] = useState<string | null>(null)
   const isMountedRef = useRef(true)
+
+  // Keep latest callbacks in ref to avoid tearing down the polling loop on state/prop updates
+  const onIncomingMessageRef = useRef(onIncomingMessage)
+  const onMessageStatusUpdateRef = useRef(onMessageStatusUpdate)
+
+  useEffect(() => {
+    onIncomingMessageRef.current = onIncomingMessage
+  }, [onIncomingMessage])
+
+  useEffect(() => {
+    onMessageStatusUpdateRef.current = onMessageStatusUpdate
+  }, [onMessageStatusUpdate])
 
   useEffect(() => {
     isMountedRef.current = true
@@ -38,36 +62,57 @@ export function useNotifications({ credentials, onIncomingMessage }: UseNotifica
         if (!isMountedRef.current || abortController.signal.aborted) return
 
         if (envelope && envelope.receiptId) {
-          const body = envelope.body as IncomingMessageWebhook
+          const body = envelope.body as
+            | IncomingMessageWebhook
+            | OutgoingStatusWebhook
+            | Record<string, unknown>
 
+          // Handle incoming messages
           if (body?.typeWebhook === 'incomingMessageReceived') {
-            const chatId = body.senderData?.chatId
+            const incoming = body as IncomingMessageWebhook
+            const chatId = incoming.senderData?.chatId
             const text =
-              body.messageData?.textMessageData?.textMessage ||
-              body.messageData?.extendedTextMessageData?.text ||
+              incoming.messageData?.textMessageData?.textMessage ||
+              incoming.messageData?.extendedTextMessageData?.text ||
               ''
 
             if (chatId && text) {
-              onIncomingMessage({
+              onIncomingMessageRef.current({
                 chatId,
                 text,
-                senderName: body.senderData.senderName || body.senderData.senderContactName,
-                timestamp: body.timestamp ? body.timestamp * 1000 : Date.now(),
-                idMessage: body.idMessage || String(Date.now()),
+                senderName:
+                  incoming.senderData.senderName || incoming.senderData.senderContactName,
+                timestamp: incoming.timestamp ? incoming.timestamp * 1000 : Date.now(),
+                idMessage: incoming.idMessage || String(Date.now()),
               })
             }
           }
 
-          // Acknowledge receipt to dequeue the notification
+          // Handle delivery/read status updates for sent messages
+          if (body?.typeWebhook === 'outgoingMessageStatus') {
+            const statusUpdate = body as OutgoingStatusWebhook
+            if (
+              statusUpdate.idMessage &&
+              statusUpdate.status &&
+              onMessageStatusUpdateRef.current
+            ) {
+              onMessageStatusUpdateRef.current({
+                idMessage: statusUpdate.idMessage,
+                status: statusUpdate.status,
+              })
+            }
+          }
+
+          // Acknowledge and remove notification from GREEN-API queue
           await deleteNotification(credentials, envelope.receiptId).catch((err) => {
             console.warn('Failed to delete notification receipt:', err)
           })
 
           setLastError(null)
-          // Check for next queued notification promptly
-          timerId = setTimeout(poll, 400)
+          // Rapidly process next queued item
+          timerId = setTimeout(poll, 300)
         } else {
-          // No notifications pending in queue, wait before next check
+          // Queue is empty, poll again after brief pause
           setLastError(null)
           timerId = setTimeout(poll, 2500)
         }
@@ -76,7 +121,7 @@ export function useNotifications({ credentials, onIncomingMessage }: UseNotifica
 
         const message = err instanceof Error ? err.message : 'Ошибка при опросе уведомлений'
         setLastError(message)
-        // Exponential/backed-off retry delay on failure
+        // Adaptive backoff on network failures
         timerId = setTimeout(poll, 5000)
       }
     }
@@ -88,7 +133,7 @@ export function useNotifications({ credentials, onIncomingMessage }: UseNotifica
       abortController.abort()
       if (timerId) clearTimeout(timerId)
     }
-  }, [credentials?.idInstance, credentials?.apiTokenInstance, credentials?.apiUrl, onIncomingMessage])
+  }, [credentials?.idInstance, credentials?.apiTokenInstance, credentials?.apiUrl])
 
   return { isPolling, lastError }
 }

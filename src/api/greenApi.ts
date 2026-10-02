@@ -18,13 +18,20 @@ export function normalizeChatId(input: string): string {
   if (trimmed.includes('@')) {
     return trimmed
   }
-  const digitsOnly = trimmed.replace(/\D/g, '')
+  let digitsOnly = trimmed.replace(/\D/g, '')
+  // Normalize Russian domestic 8XXXXXXXXXX format to international 7XXXXXXXXXX
+  if (digitsOnly.length === 11 && digitsOnly.startsWith('8')) {
+    digitsOnly = '7' + digitsOnly.slice(1)
+  }
   return `${digitsOnly}@c.us`
 }
 
 export function formatPhoneNumber(chatIdOrPhone: string): string {
-  const digits = chatIdOrPhone.replace(/@.*$/, '').replace(/\D/g, '')
-  if (digits.length === 11 && (digits.startsWith('7') || digits.startsWith('8'))) {
+  let digits = chatIdOrPhone.replace(/@.*$/, '').replace(/\D/g, '')
+  if (digits.length === 11 && digits.startsWith('8')) {
+    digits = '7' + digits.slice(1)
+  }
+  if (digits.length === 11 && digits.startsWith('7')) {
     return `+7 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7, 9)}-${digits.slice(9, 11)}`
   }
   if (digits.length === 12 && digits.startsWith('998')) {

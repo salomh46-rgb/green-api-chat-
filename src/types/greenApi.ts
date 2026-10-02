@@ -64,7 +64,15 @@ export interface IncomingMessageWebhook {
   }
 }
 
+export interface OutgoingStatusWebhook {
+  typeWebhook: 'outgoingMessageStatus'
+  chatId: string
+  idMessage: string
+  status: 'sent' | 'delivered' | 'read'
+}
+
 export interface NotificationEnvelope {
   receiptId: number
-  body: IncomingMessageWebhook | Record<string, unknown>
+  body: IncomingMessageWebhook | OutgoingStatusWebhook | Record<string, unknown>
 }
+
