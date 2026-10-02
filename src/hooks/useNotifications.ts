@@ -45,7 +45,6 @@ export function useNotifications({
   useEffect(() => {
     isMountedRef.current = true
     if (!credentials?.idInstance || !credentials?.apiTokenInstance) {
-      setIsPolling(false)
       return
     }
 
@@ -132,8 +131,9 @@ export function useNotifications({
       isMountedRef.current = false
       abortController.abort()
       if (timerId) clearTimeout(timerId)
+      setIsPolling(false)
     }
-  }, [credentials?.idInstance, credentials?.apiTokenInstance, credentials?.apiUrl])
+  }, [credentials])
 
   return { isPolling, lastError }
 }

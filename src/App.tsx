@@ -61,32 +61,19 @@ export function App() {
   const chatsStorageKey = credentials ? `green_api_chats_${credentials.idInstance}` : null
   const messagesStorageKey = credentials ? `green_api_msgs_${credentials.idInstance}` : null
 
-  const [chats, setChats] = useState<ChatContact[]>([])
-  const [messagesByChat, setMessagesByChat] = useState<Record<string, ChatMessage[]>>({})
+  const [chats, setChats] = useState<ChatContact[]>(() => {
+    return chatsStorageKey
+      ? safeJsonParse<ChatContact[]>(localStorage.getItem(chatsStorageKey), [])
+      : []
+  })
+  const [messagesByChat, setMessagesByChat] = useState<Record<string, ChatMessage[]>>(() => {
+    return messagesStorageKey
+      ? safeJsonParse<Record<string, ChatMessage[]>>(localStorage.getItem(messagesStorageKey), {})
+      : {}
+  })
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSending, setIsSending] = useState(false)
-
-  // Load chats and messages on login
-  useEffect(() => {
-    if (!chatsStorageKey || !messagesStorageKey) {
-      setChats([])
-      setMessagesByChat({})
-      setActiveChatId(null)
-      return
-    }
-
-    const savedChats = safeJsonParse<ChatContact[]>(
-      localStorage.getItem(chatsStorageKey),
-      []
-    )
-    const savedMsgs = safeJsonParse<Record<string, ChatMessage[]>>(
-      localStorage.getItem(messagesStorageKey),
-      {}
-    )
-    setChats(savedChats)
-    setMessagesByChat(savedMsgs)
-  }, [chatsStorageKey, messagesStorageKey])
 
   // Persist chats on change
   useEffect(() => {
@@ -220,11 +207,19 @@ export function App() {
   const handleLogin = (creds: GreenApiCredentials) => {
     localStorage.setItem(STORAGE_KEY_CREDS, JSON.stringify(creds))
     setCredentials(creds)
+    const newChatsKey = `green_api_chats_${creds.idInstance}`
+    const newMsgsKey = `green_api_msgs_${creds.idInstance}`
+    setChats(safeJsonParse<ChatContact[]>(localStorage.getItem(newChatsKey), []))
+    setMessagesByChat(
+      safeJsonParse<Record<string, ChatMessage[]>>(localStorage.getItem(newMsgsKey), {})
+    )
   }
 
   const handleLogout = () => {
     localStorage.removeItem(STORAGE_KEY_CREDS)
     setCredentials(null)
+    setChats([])
+    setMessagesByChat({})
     setActiveChatId(null)
   }
 

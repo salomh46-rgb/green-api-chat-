@@ -52,7 +52,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     if (activeChat) {
       inputRef.current?.focus()
     }
-  }, [activeChat?.id])
+  }, [activeChat])
 
   const handleSend = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()

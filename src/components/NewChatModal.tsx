@@ -19,11 +19,16 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setPhone('')
-      setError(null)
-      setTimeout(() => inputRef.current?.focus(), 50)
+      const timer = setTimeout(() => inputRef.current?.focus(), 50)
+      return () => clearTimeout(timer)
     }
   }, [isOpen])
+
+  const handleClose = () => {
+    setPhone('')
+    setError(null)
+    onClose()
+  }
 
   if (!isOpen) return null
 
@@ -41,7 +46,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
 
     const chatId = normalizeChatId(digits)
     onCreateChat(chatId, digits)
-    onClose()
+    handleClose()
   }
 
   return (
@@ -59,7 +64,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
             <h2 className="text-base font-semibold text-gray-900">Новый диалог</h2>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 rounded-lg p-1 hover:bg-gray-100 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -97,7 +102,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
           <div className="flex items-center justify-end gap-2.5">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
             >
               Отмена
