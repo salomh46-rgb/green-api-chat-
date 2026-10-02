@@ -4,7 +4,7 @@
 
 Интерфейс веб-чата, разработанный по мотивам [web.max.ru](https://web.max.ru/), позволяющий авторизоваться по учетным данным GREEN-API, создавать диалоги по номеру телефона, отправлять текстовые сообщения и принимать ответы в реальном времени через HTTP API.
 
-🔗 **Демо онлайн (Live Demo):** [https://salomh46-rgb.github.io/green-api-chat-/](https://salomh46-rgb.github.io/green-api-chat-/)
+🔗 **Демо онлайн (Live Demo):** [https://green-api-chat-taupe.vercel.app/](https://green-api-chat-taupe.vercel.app/)
 
 ---
 
